@@ -1,0 +1,222 @@
+<!Doctype HTML>
+<html>
+
+<head>
+	<title>Line Chart</title>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="initial-scale=1, maximum-scale=1">
+	<style>
+		#tooltip {
+			opacity: 0;
+			position: fixed;
+			text-align: left;
+			padding: 5px;
+			font: 14px sans-serif;
+			color: #fff;
+			background: #333;
+			border: 0px;
+			border-radius: 2px;
+			pointer-events: none;
+			z-index: 1099;
+		}
+	</style>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.13/vue.min.js"></script>
+</head>
+
+<body>
+	<div id="vapp">
+		<svg height="600" width="1000">
+			<!-- Y Axis -->
+  			<line v-bind:x1="PL" v-bind:y1="PT - 5" v-bind:x2="PL" v-bind:y2="PT + H" style="stroke:rgba(54,158,173,.7);stroke-width:2" />
+
+			<!-- X Axis -->
+			<line v-bind:x1="PL" v-bind:y1="PT + H" v-bind:x2="PL + W + 5" v-bind:y2="H + PT" style="stroke:rgba(54,158,173,.7);stroke-width:2" />
+
+			<line v-for="(obj, index) in arrYTicks"  v-bind:x1="obj.x - tickLength / 2" v-bind:y1="obj.y" v-bind:x2="obj.x + tickLength / 2" v-bind:y2="obj.y" style="stroke:rgba(54,158,173,.7);stroke-width:2" />
+
+			<line v-for="(obj, index) in arrXTicks"  v-bind:x1="obj.x" v-bind:y1="obj.y - tickLength / 2" v-bind:x2="obj.x" v-bind:y2="obj.y + tickLength / 2" style="stroke:rgba(54,158,173,.7);stroke-width:2" />
+
+			<path v-bind:d="linePath" style="stroke:rgba(54,158,173,.7);stroke-width:2" fill="none"></path>
+			<text v-for="(obj, index) in xTicksCoordinates" v-bind:x="obj.x" v-bind:y="obj.y" fill="#cccc">{{obj.label}}</text>
+			<text v-for="(obj, index) in yTicksCoordinates" v-bind:x="obj.x" v-bind:y="obj.y" fill="#cccc">{{obj.label}}</text>
+			<circle v-for="(obj, index) in dataPointsArrMap" r="4" v-bind:cx="obj.x" v-bind:cy="obj.y" style="fill: rgb(30, 136, 229);"  @mouseover="showTooltip(obj.value, event)" @mouseleave="hideTooltip()"></circle>
+		</svg>
+		<div id="tooltip"></div>
+	</div>
+</body>
+<script>
+	window.addEventListener("load", function() {
+		var app = new Vue({
+			el: '#vapp',
+			data: {
+				H: 500,
+				W: 600,
+				PL: 50,
+				PT: 50,
+				PR: 50,
+				PB: 50,
+				totalXTicks: 12,
+				totalYTicks: 12,
+				arrXTicks: [],
+				arrYTicks: [],
+				tickLength: 10,
+				linePath: '',
+				xTicksCoordinates: [],
+				yTicksCoordinates: [],
+				dataPointsArrMap: []
+			},
+			created: function() {
+				this.start();
+			},
+			methods: {
+				showTooltip: function(obj, event) {
+					var tooltip = document.getElementById('tooltip');
+					tooltip.innerHTML = "Number of Persons : " + obj.person + "<br/>Value : " + obj.value + "<br/>Date : " + new Date(obj.month);
+					tooltip.style.left = event.pageX + 'px';
+					tooltip.style.top = (event.pageY + 20) + 'px';
+					tooltip.style.opacity = 1;
+				},
+				hideTooltip: function() {
+					document.getElementById('tooltip').style.opacity = 0;
+				},
+				start: function() {
+					var diffXTicks = this.W / (this.totalXTicks - 1);
+					var diffYTicks = this.H / this.totalYTicks;
+					for (var i = 0; i < this.totalXTicks; i++) {
+						this.arrXTicks.push({
+							x: (this.PL + i * diffXTicks),
+							y: (this.H + this.PT)
+						});
+					}
+					for (var i = 0; i <= this.totalYTicks; i++) {
+						this.arrYTicks.push({
+							x: (this.PL),
+							y: (this.PT + (diffYTicks) * i)
+						});
+					}
+
+					var maxDate = data[0]['month'];
+					var minDate = data[0]['month'];
+					var maxValue = data[0]['value'];
+					for (var i = 0; i < data.length; i++) {
+						if (data[i]['month'] > maxDate) {
+							maxDate = data[i]['month'];
+						}
+						if (data[i]['month'] < minDate) {
+							minDate = data[i]['month'];
+						}
+						if (data[i]['value'] > maxValue) {
+							maxValue = data[i]['value'];
+						}
+					}
+					var xAxisFactor = this.W / (maxDate - minDate);
+					var yAxisFactor = this.H / maxValue;
+					var dataPoints = [];
+
+					for (var i = 0; i < data.length; i++) {
+						var xcoordinate = this.PL + (data[i]['month'] - minDate) * xAxisFactor;
+
+						var ycoordinate = this.PT + this.H - data[i]['value'] * yAxisFactor;
+						dataPoints.push(xcoordinate + "," + ycoordinate);
+						this.dataPointsArrMap.push({
+							x: xcoordinate,
+							y: ycoordinate,
+							value: data[i]
+						});
+					}
+					this.linePath = 'M' + dataPoints.join(' L');
+
+					var xTicksLabel = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+					for (var i = 0; i < this.arrXTicks.length; i++) {
+						this.xTicksCoordinates.push({
+							x: this.arrXTicks[i].x - 13,
+							y: this.arrXTicks[i].y + 20,
+							label: xTicksLabel[i]
+						});
+					}
+					var ydiff = maxValue / this.totalYTicks;
+					for (var i = 0; i < this.arrYTicks.length; i++) {
+						this.yTicksCoordinates.push({
+							x: this.arrYTicks[i].x - 45,
+							y: (this.H + this.PT) + ydiff - this.arrYTicks[i].y + 12,
+							label: parseInt(i * ydiff)
+						});
+					}
+
+				}
+			}
+		});
+	});
+	Vue.directive('zeroToNine', {
+		update: function(el, binding, vnode) {
+			if (el.value == undefined || el.value == '') {
+				return;
+			} else if (!el.value.match(/^\d+$/)) {
+				if (binding.oldValue != undefined) {
+					binding.value = binding.oldValue;
+					el.value = binding.oldValue;
+				} else {
+					el.value = '';
+					binding.value = undefined;
+				}
+			} else if (el.value > 9) {
+				binding.value = Number(el.value) % 10;
+				el.value = binding.value;
+			}
+		}
+	});
+	var data = [{
+		"month": new Date(2012, 00, 1),
+		"value": 450,
+		"person": 20
+	}, {
+		"month": new Date(2012, 01, 1),
+		"value": 414,
+		"person": 10
+	}, {
+		"month": new Date(2012, 02, 1),
+		"value": 520,
+		"person": 100
+	}, {
+		"month": new Date(2012, 03, 1),
+		"value": 460,
+		"person": 50
+	}, {
+		"month": new Date(2012, 04, 1),
+		"value": 450,
+		"person": 40
+	}, {
+		"month": new Date(2012, 05, 1),
+		"value": 500,
+		"person": 60
+	}, {
+		"month": new Date(2012, 06, 1),
+		"value": 5,
+		"person": 10
+	}, {
+		"month": new Date(2012, 07, 1),
+		"value": 480,
+		"person": 0
+	}, {
+		"month": new Date(2012, 08, 1),
+		"value": 310,
+		"person": 80
+	}, {
+		"month": new Date(2012, 09, 1),
+		"value": 500,
+		"person": 05
+	}, {
+		"month": new Date(2012, 10, 1),
+		"value": 10,
+		"person": 15
+	}, {
+		"month": new Date(2012, 11, 1),
+		"value": 10,
+		"person": 15
+	}];
+	for (var i = 0; i < data.length; i++) {
+		data[i]['month'] = data[i]['month'].getTime();
+	}
+</script>
+
+</html>
